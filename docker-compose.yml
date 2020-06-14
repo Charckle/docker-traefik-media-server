@@ -1,0 +1,80 @@
+version: "2.1"
+services:
+
+    
+	traefik:
+        image: traefik:1.7.2-alpine
+        ports:
+            - 80:80
+			- 443:443
+        container_name: traefik
+        labels:
+            - traefik.frontend.rule=Host:monitor.razor.si
+            - traefik.port=8080
+
+        volumes:
+                - /var/run/docker.sock:/var/run/docker.soc
+                - ./traefik.toml:/traefik.toml
+		networks:
+		  - web
+        restart: unless-stopped
+	
+    deluge:
+        image: linuxserver/deluge:latest
+        container_name: deluge
+        network_mode: host
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=${TIME_Z}
+		labels:
+		  - traefik.backend=deluge
+		  - traefik.frontend.rule=Host:deluge.razor.si
+		  - traefik.docker.network=web
+		  - traefik.port=8112
+
+        volumes:
+                - ${DELUGE_CONF}:/config
+                - ${DELUGE_DATA}:/downloads
+		networks:
+		  - internal
+		  - web
+        restart: unless-stopped
+        
+    jellyfin:
+        image: linuxserver/jellyfin
+        container_name: jellyfin
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=${TIME_Z}
+            - UMASK_SET=022 #optional
+        volumes:
+            - ${JELLY_CONF}:/config
+            - ${JELLY_DATA}:/data/torrents
+            - /opt/vc/lib:/opt/vc/lib #optional
+		labels:
+		  - traefik.backend=deluge
+		  - traefik.frontend.rule=Host:deluge.razor.si
+		  - traefik.docker.network=web
+		  - traefik.port=8096
+
+        devices:
+            - /dev/dri:/dev/dri #optional
+            - /dev/vcsm:/dev/vcsm #optional
+            - /dev/vchiq:/dev/vchiq #optional
+            - /dev/video10:/dev/video10 #optional
+            - /dev/video11:/dev/video11 #optional
+            - /dev/video12:/dev/video12 #optional
+		networks:
+		  - internal
+		  - web
+        restart: unless-stopped
+
+	networks:
+	  web:
+		external: true
+	  internal:
+		external: false
+	
+
