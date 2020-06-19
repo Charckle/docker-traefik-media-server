@@ -1,46 +1,48 @@
-version: "2.1"
-services:
+version: "3"
 
-    
-	traefik:
-        image: traefik:1.7.2-alpine
+networks:
+    internal:
+       external: false
+
+services:
+    traefik:
+        image: traefik:2.2
         ports:
             - 80:80
-			- 443:443
+            - 443:443
         container_name: traefik
-        labels:
-            - traefik.frontend.rule=Host:monitor.razor.si
-            - traefik.port=8080
 
         volumes:
-                - /var/run/docker.sock:/var/run/docker.soc
-                - ./traefik.toml:/traefik.toml
-		networks:
-		  - web
+                - /var/run/docker.sock:/var/run/docker.sock
+                - ./traefik.yml:/traefik.yml
+                - ./traefik_conf/:/traefik_conf/
+                - ./traefik_logs.log:/traefik_logs.log
+        networks:
+                - default
         restart: unless-stopped
-	
+
     deluge:
         image: linuxserver/deluge:latest
         container_name: deluge
-        network_mode: host
         environment:
             - PUID=1000
             - PGID=1000
             - TZ=${TIME_Z}
-		labels:
-		  - traefik.backend=deluge
-		  - traefik.frontend.rule=Host:deluge.razor.si
-		  - traefik.docker.network=web
-		  - traefik.port=8112
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.deluge.rule=Host(`deluge.razor.si`)"
+            - "traefik.http.routers.deluge.entrypoints=websecure"
+            - "traefik.http.routers.deluge.tls=true"
+            - "traefik.http.routers.deluge.tls.certresolver=myresolver"
 
         volumes:
-                - ${DELUGE_CONF}:/config
-                - ${DELUGE_DATA}:/downloads
-		networks:
-		  - internal
-		  - web
+            - ${DELUGE_CONF}:/config
+            - ${DELUGE_DATA}:/downloads
+        networks:
+            - internal
+            - default
         restart: unless-stopped
-        
+ 
     jellyfin:
         image: linuxserver/jellyfin
         container_name: jellyfin
@@ -53,11 +55,12 @@ services:
             - ${JELLY_CONF}:/config
             - ${JELLY_DATA}:/data/torrents
             - /opt/vc/lib:/opt/vc/lib #optional
-		labels:
-		  - traefik.backend=deluge
-		  - traefik.frontend.rule=Host:deluge.razor.si
-		  - traefik.docker.network=web
-		  - traefik.port=8096
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.jellyfin.rule=Host(`jelly.razor.si`)"
+            - "traefik.http.routers.jellyfin.entrypoints=websecure"
+            - "traefik.http.routers.jellyfin.tls=true"
+            - "traefik.http.routers.jellyfin.tls.certresolver=myresolver"
 
         devices:
             - /dev/dri:/dev/dri #optional
@@ -66,15 +69,9 @@ services:
             - /dev/video10:/dev/video10 #optional
             - /dev/video11:/dev/video11 #optional
             - /dev/video12:/dev/video12 #optional
-		networks:
-		  - internal
-		  - web
+        networks:
+            - internal
+            - default
         restart: unless-stopped
 
-	networks:
-	  web:
-		external: true
-	  internal:
-		external: false
-	
 

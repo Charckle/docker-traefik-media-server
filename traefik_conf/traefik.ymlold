@@ -1,0 +1,20 @@
+http:
+  services:
+    motion_service:
+      loadBalancer:
+        servers:
+          - url: "http://192.168.0.200/"
+
+http:
+  routers:
+    motion:
+      entryPoints:
+        - "web"
+      rule: "Host(`motion.razor.si`)"
+      service: motion_service
+    
+      #motion_secure:
+      #entryPoints:
+      #  - "websecure"
+      #rule: "Host(`motion.razor.si`)"
+      #service: motion_service
